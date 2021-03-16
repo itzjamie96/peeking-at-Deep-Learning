@@ -1,1 +1,1 @@
-# Simple-Jarvis
+# Understanding basics of CNN
