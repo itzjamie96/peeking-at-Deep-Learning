@@ -12,13 +12,15 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 
-# 경고 메세지 무시하게 해줌 (tf 경고 코드 오지게 많으니까)
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# TF의 WARNING 로그 필터링하기
+# 붉은색 경고로그가 안 뜨게 함
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
-# GPU 메모리 할당할 때 오류생길 수 있어서 해결하는 코드
-# Code for Correcting Error
+# Keras에서 GPU를 쓰기 위한 코드
+# gpus = 사용 가능한 모든 gpu들을 리스트화
 gpus = tf.config.experimental.list_physical_devices('GPU')
+# 사용 가능한 gpu가 있다면 필요한 메모리만큼만 사용하도록 제한
 if gpus:
     try:
         # Currently, memory growth needs to be the same across GPUs
@@ -31,7 +33,7 @@ if gpus:
         print(e)
 
 
-# progress bar
+# Progress bar
 # Define Print Progress Bar Function
 def print_progress(iteration, total, prefix='>> Progress:', suffix='Complete', decimals=1, bar_length=55):
     str_format = "{0:." + str(decimals) + "f}"
@@ -46,32 +48,36 @@ def print_progress(iteration, total, prefix='>> Progress:', suffix='Complete', d
 
 
 # Set Basic Parameters
-# # Training Data Path (Directory)
-train_dir = "../Dataset/train_data/"
-validation_dir = "../Dataset/validation_data/"
-# # Classes => Types of Fish
-# class = category
-cls = os.listdir(train_dir)
-# # Number of Classes
-num_cls = len(cls)
-# # Size of Images
+# Training Data Path (Directory)
+train_dir = "../fish_data/train_data/"
+validation_dir = "../fish_data/validation_data/"
+
+# set types of Fish
+# species = list of directories in the training directory
+# automatically ordered alphabetically
+# English recommended
+species = os.listdir(train_dir)
+
+# Number of species
+number_of_species = len(species)
+
+# Set size of Images
+# GPU로 돌릴 수 있는 이미지 사진 중 최대
 img_height = 128
 img_width = 128
 
 
-# Parsing Images
-# # Parsing Training Image
-# x = 이미지 사이즈/ RGB값
-# y = labeling array
-x_train = []
-y_train = []
-# ## Image Parsing Process
-print("\nTraining Image Parsing Started")
-for idx, cl in enumerate(cls):
-    print("-" + cl + "- Image Parsing Progressing")
-    label = [0 for i in range(num_cls)]
+# Parse Training Images
+x_train = []    # 사진의 RGB값 기반으로 어떻게 생겼는가?
+y_train = []    # 이 데이터는 무엇인가? labeling (ex. 쏘가리? 참돔?)
+
+# Image Parsing Process
+print("\nSTART PARSING Training Images")
+for idx, spe in enumerate(species):
+    print("-" + spe + "- Image Parsing Progressing")
+    label = [0 for i in range(number_of_species)]
     label[idx] = 1
-    img_dir = train_dir + cl + '/'
+    img_dir = train_dir + spe + '/'
     for top, dir, f in os.walk(img_dir):
         for filename in f:
             print_progress(f.index(filename) + 1, len(f))
@@ -83,17 +89,19 @@ for idx, cl in enumerate(cls):
             y_train.append(label)
 x_train = np.array(x_train)
 y_train = np.array(y_train)
-print("Training Image Parsing Finished")
-# # Parsing Validation Image
+print("FINISHED PARSING Training Images")
+
+
+# Parse Validation Images
 x_val = []
 y_val = []
-# ## Image Parsing Process
-print("\nValidation Image Parsing Started")
-for idx, cl in enumerate(cls):
-    print("-" + cl + "- Image Parsing Progressing")
-    label = [0 for i in range(num_cls)]
+# Image Parsing Process
+print("\nSTART PARSING Validation Images")
+for idx, spe in enumerate(species):
+    print("-" + spe + "- Image Parsing Progressing")
+    label = [0 for i in range(number_of_species)]
     label[idx] = 1
-    img_dir = validation_dir + cl + '/'
+    img_dir = validation_dir + spe + '/'
     for top, dir, f in os.walk(img_dir):
         for filename in f:
             print_progress(f.index(filename) + 1, len(f))
@@ -105,13 +113,13 @@ for idx, cl in enumerate(cls):
             y_val.append(label)
 x_val = np.array(x_val)
 y_val = np.array(y_val)
-print("Validation Image Parsing Finished\n")
+print("FINISHED PARSING Validation Images\n")
 
 
 # Build CNN Model
 Fish_Classifier = Sequential()
-# # Feature Extraction Layer
-# ## Convolution Layer
+# Feature Extraction Layer
+## Convolution Layer
 # input_shape(128,128,3(RGB))
 # filters=32 (2의 제곱으로 설정하는게 일반적, 점차 커지게)
 # strides = 열 어떻게 움직일 것인가
@@ -162,7 +170,7 @@ Fish_Classifier.add(Dropout(0.5))
 
 # ## Output Layer
 # 우리가 가진 클래스 수를 정해줌 (우리가 가진 클래스의 갯수만큼 출력층이 나와야함)
-Fish_Classifier.add(Dense(num_cls, activation="softmax"))
+Fish_Classifier.add(Dense(number_of_species, activation="softmax"))
 
 
 # # Set Optimizer (RMSprop) and Learning Rate
@@ -185,15 +193,16 @@ Datetime = datetime.datetime.now().strftime('%m%d_%H%M')
 # 가중치 계속 업데이트하는데, 1~100 다 돌기 전에 좋은 모델이 나와서 저장하려면?
 # =체크포인트를 만들어준다
 # = validation loss값을 기준으로 좋은지 안좋은지 판단하겠다 = 이게 제일 작을 때마다 저장하게 됨
-Check_Pointer = ModelCheckpoint(filepath="fish_classification.h5", monitor='val_loss', verbose=1, save_best_only=True)
+Check_Pointer = ModelCheckpoint(filepath="tmp_fish_classification.h5", monitor='val_loss', verbose=1, save_best_only=True)
 
 # 일정 수준이 지나도 모델의 성능이 더 바뀌지 않는 것 같을 때 학습 일찍 종료
-# 50번동안 모델이 개선되지 않으면 종료시키겠다
-Early_Stopping_Callback = EarlyStopping(monitor='val_loss', patience=50)
+# patience = N번동안 모델이 개선되지 않으면 종료시키겠다
+Early_Stopping_Callback = EarlyStopping(monitor='val_loss', patience=10000)
 
 # Batch Learning
 # batch_size = mini batch에 들어갈 데이터의 갯수 (요즘은 30언저리에서 설정)
-history = Fish_Classifier.fit(x_train, y_train, epochs=100, batch_size=32, verbose=1, validation_data=(x_val, y_val),
+# epochs = 총 몇번 반복할지
+history = Fish_Classifier.fit(x_train, y_train, epochs=10000, batch_size=16, verbose=1, validation_data=(x_val, y_val),
                               callbacks=[Early_Stopping_Callback, Check_Pointer])
 
 

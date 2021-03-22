@@ -1,11 +1,11 @@
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
 import numpy as np
 from keras.models import load_model
 from PIL import Image
 import tensorflow as tf
 
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 # Code for Correcting Error
 gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -23,12 +23,16 @@ if gpus:
 
 # Set Basic Parameters
 # # Prediction Image Path
-image_path = "./example.jpg"
+image_path = "gold_mandarin.jpg"
 # # Trained Model Path (.h5 file)
-model_path = "./fish_classification.h5"
+model_path = "./tmp_fish_classification.h5"
 # # Size of Images
 img_height = 128
 img_width = 128
+
+# # Set Class Name List
+cls_list = ["쏘가리", "참돔", "우럭"]
+
 
 
 # Transform Image for Prediction
@@ -47,6 +51,12 @@ pred_data = np.array(pred_data)
 # # Load Model (.h5 file)
 pred_model = load_model(model_path)
 # # Predict and Save Result
-pred_result = pred_model.predict(pred_data)
+pred_result = pred_model.predict(pred_data)[0]
+pred_result = list(pred_result)
+cls_idx = pred_result.index(max(pred_result))
 
-print("Hello")
+result_percentage = [p*100 for p in pred_result]
+
+# print(f"prediction result: {result_percentage}")
+print(f"{max(pred_result)*100:.2f}%")
+print("이 사진은 <" + cls_list[cls_idx] + ">의 사진으로 추정됩니다.")
